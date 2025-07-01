@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Portal - Nikagenyx</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Questrial', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-6">
+
+  <h1 class="text-3xl font-bold mb-6">👋 Welcome to the Nikagenyx Employee Portal</h1>
+
+  <div class="bg-gray-800 p-6 rounded-lg shadow-md w-full max-w-md">
+    <form id="loginForm" class="space-y-4">
+      <input
+        type="text"
+        id="empId"
+        placeholder="Employee ID"
+        required
+        class="w-full px-4 py-2 rounded bg-gray-700 text-white border border-gray-600"
+      />
+      <button
+        type="submit"
+        class="w-full bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white font-semibold"
+      >
+        Continue
+      </button>
+    </form>
+    <p id="error" class="text-red-500 text-sm mt-4 hidden text-center"></p>
+  </div>
+
+  <footer class="text-gray-500 text-sm mt-12 text-center">
+    &copy; 2025 Nikagenyx Vision Tech Private Limited
+  </footer>
+
+  <script>
+    const ADMIN_EMAILS = ["nikagenyx@gmail.com", "nic.dcosta21@gmail.com"];
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const empId = document.getElementById("empId").value.trim().toUpperCase();
+      const errorBox = document.getElementById("error");
+
+      try {
+        const res = await fetch("/.netlify/functions/get_employee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emp_id: empId })
+        });
+
+        const data = await res.json();
+        if (!data || !data.emp_id) {
+          errorBox.textContent = "❌ Employee not found.";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+
+        // Store session
+        localStorage.setItem("emp_session", JSON.stringify(data));
+
+        // Redirect based on role
+        if (data.role === "admin") {
+          window.location.href = "admin_dashboard.html";
+        } else {
+          window.location.href = "employee_dashboard.html";
+        }
+      } catch (err) {
+        console.error("Login failed:", err);
+        errorBox.textContent = "❌ Something went wrong. Please try again.";
+        errorBox.classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>

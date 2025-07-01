@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register New Employee</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Questrial', sans-serif;
+    }
+    #mfaSecret {
+      font-family: monospace;
+      background: #2d2d2d;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col min-h-screen">
+
+<main class="flex-grow flex items-center justify-center">
+  <section class="max-w-md w-full mx-auto p-6 bg-gray-800 text-white rounded-md shadow-lg mt-10">
+    <h2 class="text-2xl font-bold mb-6 text-center">Register New Employee</h2>
+    <form id="registerForm">
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">First Name *</label>
+        <input type="text" name="firstName" required class="w-full p-2 bg-gray-700 border border-gray-600 rounded">
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">Last Name *</label>
+        <input type="text" name="lastName" required class="w-full p-2 bg-gray-700 border border-gray-600 rounded">
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">Phone Number *</label>
+        <input type="tel" name="phone" pattern="[0-9]{10}" required class="w-full p-2 bg-gray-700 border border-gray-600 rounded">
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">Date of Birth *</label>
+        <input type="date" name="dob" required class="w-full p-2 bg-gray-700 border border-gray-600 rounded">
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">4 Digits PIN *</label>
+        <input type="password" name="pin" required class="w-full p-2 bg-gray-700 border border-gray-600 rounded">
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">Department *</label>
+        <select name="department" required class="w-full p-2 bg-gray-700 border border-gray-600 rounded">
+          <option value="">-- Select Department --</option>
+          <option value="Tech Team">Tech Team</option>
+          <option value="Admin Team">Admin Team</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label class="block mb-1 text-sm">Capture Photo *</label>
+        <video id="video" autoplay class="w-full rounded mb-2 border border-gray-700"></video>
+        <canvas id="canvas" class="hidden"></canvas>
+        <button type="button" id="captureBtn" class="bg-blue-600 px-4 py-1 rounded hover:bg-blue-700">Capture</button>
+      </div>
+      <button type="submit" class="w-full bg-green-600 py-2 mt-4 rounded hover:bg-green-700">Register</button>
+    </form>
+
+    <div id="qrSection" class="mt-6 hidden text-center">
+      <p class="text-sm mb-2">Scan this QR code in your authenticator app:</p>
+      <img id="qrImage" src="" alt="MFA QR Code" class="mx-auto w-40 h-40 border rounded mb-3" />
+      <p class="text-sm mb-1">Or enter this secret key manually:</p>
+      <p id="mfaSecret" class="text-sm mb-2 select-all"></p>
+      <button onclick="copySecret()" class="mt-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">Copy Secret Key</button>
+      <button onclick="window.location.href='employee_portal.html'" class="mt-4 block w-full bg-green-600 hover:bg-green-700 py-2 rounded">Finish</button>
+    </div>
+
+    <p id="message" class="text-sm text-center mt-4"></p>
+  </section>
+</main>
+
+<footer class="bg-gray-800 text-gray-500 text-center py-6 text-sm">
+  &copy; 2025 Nikagenyx Vision Tech Private Limited. All rights reserved.
+</footer>
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const captureBtn = document.getElementById('captureBtn');
+  const form = document.getElementById('registerForm');
+  const message = document.getElementById('message');
+  const qrSection = document.getElementById('qrSection');
+  const qrImage = document.getElementById('qrImage');
+  const mfaSecretEl = document.getElementById('mfaSecret');
+  let capturedPhoto = '';
+
+  navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+    video.srcObject = stream;
+  });
+
+  captureBtn.addEventListener('click', () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    capturedPhoto = canvas.toDataURL('image/jpeg');
+    canvas.classList.remove('hidden');
+    captureBtn.textContent = 'Captured!';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (!capturedPhoto) {
+      alert('Please capture a photo first.');
+      return;
+    }
+
+    const data = {
+      firstName: form.firstName.value,
+      lastName: form.lastName.value,
+      phone: form.phone.value,
+      dob: form.dob.value,
+      pin: form.pin.value,
+      photo: capturedPhoto,
+      department: form.department.value
+    };
+
+    const res = await fetch('/.netlify/functions/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+      message.innerHTML = `<span class="text-green-400">✅ Registered as <strong>${result.emp_id}</strong></span>`;
+      if (result.qr_code_url && result.mfa_secret) {
+        qrImage.src = result.qr_code_url;
+        mfaSecretEl.textContent = result.mfa_secret;
+        qrSection.classList.remove('hidden');
+      }
+    } else {
+      message.textContent = `❌ Error: ${result.message}`;
+      message.classList.add('text-red-400');
+    }
+  });
+
+  function copySecret() {
+    const secret = mfaSecretEl.textContent;
+    navigator.clipboard.writeText(secret).then(() => {
+      alert("MFA Secret copied to clipboard");
+    });
+  }
+</script>
+
+</body>
+</html>
